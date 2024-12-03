@@ -6,15 +6,19 @@ describe('Day X', () => {
             const result = await solveStep1(true);
             expect(result).toBe(0);
         });
-        it('provides the right answer', async () => {
-            const result = await solveStep1(false);
-            expect(result).toBe(0);
-        });
+        // it('provides the right answer', async () => {
+        //     const result = await solveStep1(false);
+        //     expect(result).toBe(0);
+        // });
     });
     describe('Step 2', () => {
-        it('works with the example', async () => {
-            const result = await solveStep2(true);
-            expect(result).toBe(0);
-        });
+        // it('works with the example', async () => {
+        //     const result = await solveStep2(true);
+        //     expect(result).toBe(0);
+        // });
+        // it('provides the right answer', async () => {
+        //     const result = await solveStep2(false);
+        //     expect(result).toBe(0);
+        // });
     });
 });
