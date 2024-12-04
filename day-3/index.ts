@@ -19,7 +19,6 @@ export const solveStep2 = async (isExample: boolean): Promise<number> => {
     let enabled = true;
 
     return (matches ?? []).reduce((acc: number, match) => {
-        console.log(match);
         if (match === 'do()') {
             enabled = true;
         } else if (match === "don't()") {

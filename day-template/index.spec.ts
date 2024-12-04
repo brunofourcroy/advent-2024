@@ -1,7 +1,7 @@
 import { solveStep1, solveStep2 } from ".";
 
 describe('Day X', () => {
-    describe.only('Step 1', () => {
+    describe('Step 1', () => {
         it('works with the example', async () => {
             const result = await solveStep1(true);
             expect(result).toBe(0);
