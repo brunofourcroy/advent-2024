@@ -107,7 +107,7 @@ const couldEnterInfiniteLoop = (guard: Guard, grid: Grid): boolean => {
 
     let imaginaryGuard: Guard = { ...guard, position: [...guard.position] };
     while (isWithinGrid(imaginaryGrid, imaginaryGuard.position)) {
-        const move = moveGuard(imaginaryGuard, imaginaryGrid, undefined, false);
+        const move = moveGuard(imaginaryGuard, imaginaryGrid, false);
         imaginaryGuard = move.guard;
         if (weHaveBeenHereBefore(imaginaryGrid, imaginaryGuard)) {
             return true;
@@ -116,15 +116,19 @@ const couldEnterInfiniteLoop = (guard: Guard, grid: Grid): boolean => {
     return false;
 }
 
-const moveGuard = (guard: Guard, grid: Grid, prevDirection?: string, checkForInfiniteLoop = true): { guard: Guard, couldHaveEnteredInfiniteLoop: boolean; } => {
+const moveGuard = (guard: Guard, grid: Grid, checkForInfiniteLoop = true): { guard: Guard, couldHaveEnteredInfiniteLoop: boolean; } => {
     const { position } = guard;
     let couldHaveEnteredInfiniteLoop = false;
+    // Record we've been here
+    grid[position[0]][position[1]].type = 'X';
+    grid[position[0]][position[1]].visitedDirections.push(guard.direction);
+
     const inFront = getPositionInFrontOfGuard(guard);
 
     // Obstacle, we turn right
     if (grid[inFront[0]]?.[inFront[1]]?.type === '#') {
         const rotatedGuard = rotateGuard(guard);
-        return moveGuard(rotatedGuard, grid, guard.direction, checkForInfiniteLoop);
+        return moveGuard(rotatedGuard, grid, checkForInfiniteLoop);
     }
 
     // No obstacle, but what if?
@@ -132,12 +136,6 @@ const moveGuard = (guard: Guard, grid: Grid, prevDirection?: string, checkForInf
         couldHaveEnteredInfiniteLoop = true;
     }
 
-    // Record we visited the cell from this direction
-    grid[position[0]][position[1]] = { 
-        type: 'X', 
-        // If we rotated, we also need to track the direction we 'entered' the cell - entering this cell again from either direction would constitute an infinite loop
-        visitedDirections: [...(grid[position[0]][position[1]].visitedDirections ?? []), guard.direction, ...(prevDirection ? [prevDirection] : [])] 
-    };
     // Move forward
     guard.position = inFront;
 
@@ -154,14 +152,14 @@ export const solveStep1 = async (isExample: boolean): Promise<number> => {
 
     let guard = getGuard(grid);
     while (isWithinGrid(grid, guard.position)) {
-        const move = moveGuard(guard, grid, undefined, false);
+        const move = moveGuard(guard, grid, false);
         guard = move.guard;
     }
 
     return countCellsTraversed(grid);
 };
 
-export const solveStep2LessDumbButBroken = async (isExample: boolean): Promise<number> => {
+export const solveStep2SmarterButBroken = async (isExample: boolean): Promise<number> => {
     const file = await readAdventOfCodeFile(6, isExample);
     const grid = getGrid(file);
 
@@ -194,7 +192,7 @@ export const solveStep2 = async (isExample: boolean): Promise<number> => {
 
                 let guard = getGuard(grid);
                 while (isWithinGrid(imaginaryGrid, guard.position)) {
-                    const move = moveGuard(guard, imaginaryGrid, undefined, false);
+                    const move = moveGuard(guard, imaginaryGrid, false);
                     guard = move.guard;
                     if (weHaveBeenHereBefore(imaginaryGrid, guard)) {
                         scenariosCausingInfiniteLoops += 1;
