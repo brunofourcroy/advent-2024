@@ -62,7 +62,6 @@ const compressString = (str: string[]): string[] => {
 const findIndexFrom = (arr: string[], char: string, from: number): number => arr.findIndex((c, i) => c === char && i > from);
 
 const compressStringV2 = (str: string[]): string[] => {
-    const stringSize = str.length;
     for (let i = str.length -1; i >= 0; i--) {
         let lastFree = 0;
         if (str[i] === '.') {
