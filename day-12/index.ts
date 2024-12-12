@@ -1,6 +1,6 @@
 import { readAdventOfCodeFile } from "../utils/readFile";
 
-type Region = [number, number][];
+type Region = { key: string, cells: [number, number][] };
 type RegionMap = Map<string, {edges: string[]}>;
 
 const directions: { [key: string]: [number, number] } = {
@@ -15,7 +15,7 @@ const getGrid = (file: string): string[][] => {
 };
 
 
-const getArea = (region: Region): number => region.length;
+const getArea = (region: Region): number => region.cells.length;
 
 const getIdenticalNeighbours = (grid: string[][], cell: [number, number]): [number, number][] => {
     return getNeighbours(grid, cell).filter(([x, y]) => grid[x][y] === grid[cell[0]][cell[1]]);
@@ -27,14 +27,14 @@ const getNeighbours = (grid: string[][], cell: [number, number], includeEdge: bo
 
 
 const getNeighboursInRegion = (grid: string[][], region: Region, cell: [number, number]): [number, number][] => {
-    return getNeighbours(grid, cell, true).filter(([x, y]) => region.some(([rx, ry]) => rx === x && ry === y));
+    return getNeighbours(grid, cell, true).filter(([x, y]) => region.cells.some(([rx, ry]) => rx === x && ry === y));
 };
 
 const countNeighboursInRegion = (grid: string[][], region: Region, cell: [number, number]): number => {
     return getNeighboursInRegion(grid, region, cell).length;
 };
 
-const getPerimeter = (grid: string[][], region: Region): number => region.reduce((acc, cell) => {
+const getPerimeter = (grid: string[][], region: Region): number => region.cells.reduce((acc, cell) => {
     return acc + 4 - countNeighboursInRegion(grid, region, cell);
 }, 0);
 
@@ -44,7 +44,7 @@ const expandRegion = (grid: string[][], region: Region, origin: [number, number]
         return region;
     }
     traversedMap.set(`${origin[0]},${origin[1]}`, true);
-    region.push(origin);
+    region.cells.push(origin);
 
     const neighbours = getIdenticalNeighbours(grid, origin);
 
@@ -59,8 +59,8 @@ const getRegions = (grid: string[][]): Region[] => {
     const regions: Region[] = [];
     for (let i = 0; i < grid.length; i++) {
         for (let j = 0; j < grid[i].length; j++) {
-            const region = expandRegion(grid, [], [i, j], traversedMap);
-            if (region.length > 0) {
+            const region = expandRegion(grid, { key: `${grid[i][j]}-${i}-${j}`, cells: [] }, [i, j], traversedMap);
+            if (region.cells.length > 0) {
                 regions.push(region);
             }
         }
@@ -98,55 +98,62 @@ const getNeighboursKeyedByDirection = (grid: string[][], cell: [number, number],
      }, {});
 };
 
-export const getNumberOfSides = (grid: string[][], region: Region): number => {
-    const easyAccessRegion: Set<string> = new Set();
-    const corner = [];
-    for (const cell of region) {
-        easyAccessRegion.add(`${cell[0]},${cell[1]}`);
+export const getAllSides = (grid: string[][], regions: Region[]): Map<string, [number, number][]> => {
+    const easyAccessRegions: Map<string, Set<string>> = new Map();
+    const easyAccessCells: Map<string, string> = new Map();
+    const corners: Map<string, [number, number][]> = new Map();
+    for (const region of regions) {
+        easyAccessRegions.set(region.key, new Set());
+        corners.set(region.key, []);
+        for (const cell of region.cells) {
+            easyAccessRegions.get(region.key)?.add(`${cell[0]},${cell[1]}`);
+            easyAccessCells.set(`${cell[0]},${cell[1]}`, region.key);
+        }
     }
 
     for (let i = 0; i < grid.length; i++) {
         for (let j = 0; j < grid[i].length; j++) {
-            const inRegion = isInRegion([i, j], easyAccessRegion);
-            const neighbours = getNeighboursKeyedByDirection(grid, [i, j], easyAccessRegion);
-            if (inRegion) {
-                if (!neighbours.up.inRegion && !neighbours.right.inRegion) {
-                    corner.push([i, j]);
+            const regionKey = easyAccessCells.get(`${i},${j}`) as string;
+            const region = easyAccessRegions.get(regionKey) as Set<string>;
+            const neighbours = getNeighboursKeyedByDirection(grid, [i, j], region);
+            if (!neighbours.up.inRegion && !neighbours.right.inRegion) {
+                corners.get(regionKey)?.push([i, j]);
+            }
+            if (!neighbours.up.inRegion && !neighbours.left.inRegion) {
+                corners.get(regionKey)?.push([i, j]);
+            }
+            if (!neighbours.down.inRegion && !neighbours.right.inRegion) {
+                corners.get(regionKey)?.push([i, j]);
+            }
+            if (!neighbours.down.inRegion && !neighbours.left.inRegion) {
+                corners.get(regionKey)?.push([i, j]);
+            }
+            if (neighbours.up.inRegion && neighbours.right.inRegion) {
+                if (!isInRegion([i -1, j + 1], region)) {
+                    corners.get(regionKey)?.push([i, j]);
                 }
-                if (!neighbours.up.inRegion && !neighbours.left.inRegion) {
-                    corner.push([i, j]);
+            }
+            if (neighbours.up.inRegion && neighbours.left.inRegion) {
+                if (!isInRegion([i - 1, j - 1], region)) {
+                    corners.get(regionKey)?.push([i, j]);
                 }
-                if (!neighbours.down.inRegion && !neighbours.right.inRegion) {
-                    corner.push([i, j]);
+            }
+            if (neighbours.down.inRegion && neighbours.right.inRegion) {
+                if (!isInRegion([i + 1, j + 1], region)) {
+                    corners.get(regionKey)?.push([i, j]);
                 }
-                if (!neighbours.down.inRegion && !neighbours.left.inRegion) {
-                    corner.push([i, j]);
-                }
-                if (neighbours.up.inRegion && neighbours.right.inRegion) {
-                    if (!isInRegion([i -1, j + 1], easyAccessRegion)) {
-                        corner.push([i, j]);
-                    }
-                }
-                if (neighbours.up.inRegion && neighbours.left.inRegion) {
-                    if (!isInRegion([i - 1, j - 1], easyAccessRegion)) {
-                        corner.push([i, j]);
-                    }
-                }
-                if (neighbours.down.inRegion && neighbours.right.inRegion) {
-                    if (!isInRegion([i + 1, j + 1], easyAccessRegion)) {
-                        corner.push([i, j]);
-                    }
-                }
-                if (neighbours.down.inRegion && neighbours.left.inRegion) {
-                    if (!isInRegion([i + 1, j - 1], easyAccessRegion)) {
-                        corner.push([i, j]);
-                    }
+            }
+            if (neighbours.down.inRegion && neighbours.left.inRegion) {
+                if (!isInRegion([i + 1, j - 1], region)) {
+                    corners.get(regionKey)?.push([i, j]);
                 }
             }
         }
     }
-    return corner.length;
+    return corners;
 };
+
+
 
 export const solveStep2 = async (isExample: boolean): Promise<number> => {
     const file = await readAdventOfCodeFile(12, isExample);
@@ -154,7 +161,9 @@ export const solveStep2 = async (isExample: boolean): Promise<number> => {
 
     const regions = getRegions(grid);
 
+    const sides = getAllSides(grid, regions);
+
     return regions.map(region => {
-        return getArea(region) * getNumberOfSides(grid, region);
+        return getArea(region) * (sides.get(region.key)?.length || 0);
     }).reduce((a, b) => a + b, 0);
 };
