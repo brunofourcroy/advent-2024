@@ -1,3 +1,8 @@
+import {
+    MinPriorityQueue,
+    PriorityQueue,
+  } from '@datastructures-js/priority-queue';
+
 import { readAdventOfCodeFile } from "../utils/readFile";
 const getGrid = (file: string) => {
     return file.split('\n').map(line => line.split(''));
@@ -94,7 +99,12 @@ const getNextCell = (distances: Record<string, number>, visited: Set<string>): s
     return nextCell;
 }
 
-const getShortestPaths = (graph: Graph, start: string, ends: string[]): string[][] => {
+type QueuedCell = {
+    cell: string;
+    distance: number;
+}
+
+const getShortestPath = (graph: Graph, start: string, ends: string[], getAllVariations: boolean = false): string[] => {
     const cells = Array.from(graph.keys());
     const distances: Record<string, number> = {};
 
@@ -103,51 +113,49 @@ const getShortestPaths = (graph: Graph, start: string, ends: string[]): string[]
     }
     distances[start] = 0;
 
-    const visited: Set<string> = new Set([start]);
+    const queue = new MinPriorityQueue<QueuedCell>((o) => o.distance);
+    queue.enqueue({ cell: start, distance: 0 });
 
-    const path: Record<string, string> = {};
-    const startNeighbours = graph.get(start) as Record<string, number>;
-    for (const neighbour of Object.keys(startNeighbours)) {
-        path[neighbour] = start;
-        distances[neighbour] = startNeighbours[neighbour];
-    }
+    const paths: Record<string, string[]> = {};
+    paths[start] = [];
 
-    let cell = start;
-
-    while (cell) {
-        const cellDistance = distances[cell];
+    while (queue.size()) {
+        const { cell } = queue.pop();
         const neighbours = graph.get(cell) as Record<string, number>;
-
         for (const neighbour of Object.keys(neighbours)) {
-            if (visited.has(neighbour)) {
-                continue;
-            }
-            const neighbourDistance = neighbours[neighbour];
-            const distanceToNeighbour = cellDistance + neighbourDistance;
-            if (distances[neighbour] > distanceToNeighbour) {
-                distances[neighbour] = distanceToNeighbour;
-                path[neighbour] = cell;
+            const distance = distances[cell] + neighbours[neighbour];
+            if (distance < distances[neighbour]) {
+                distances[neighbour] = distance;
+                paths[neighbour] = [cell];
+                queue.enqueue({ cell: neighbour, distance });
+            } else if (distance === distances[neighbour]) {
+                paths[neighbour].push(cell);
             }
         }
-        visited.add(cell);
-        // Get closest cell that has no been visited yet
-        cell = getNextCell(distances, visited);
     }
 
-    const finalPaths: string[][] = [];
-    for (const end of ends) {
-        const finalPath = [end];
-        let neighbour = path[end];
-        while (neighbour) {
-            finalPath.push(neighbour);
-            neighbour = path[neighbour];
+    const bestEnding = ends.reduce((best, end) => {
+        if (distances[end] < distances[best]) {
+            return end;
         }
-        finalPath.reverse();
+        return best;
+    }, ends[0]);
 
-        finalPaths.push(finalPath);
+    const finalPath = [];
+    const stack = [bestEnding];
+    while (stack.length) {
+        const cell = stack.pop() as string;
+        finalPath.push(cell);
+        if (getAllVariations) {
+            stack.push(...paths[cell]);
+        } else {
+            if (paths[cell]?.[0]) {
+                stack.push(paths[cell][0]);
+            }
+        }
     }
 
-    return finalPaths;
+    return finalPath;
 }
 
 const getCostOfPath = (path: string[]) => path.reduce((cost, cell, i) => {
@@ -177,7 +185,10 @@ export const solveStep1 = async (isExample: boolean): Promise<number> => {
 
     const { graph, start, ends } = toGraph(grid);
 
-    return getShortestPaths(graph, start, ends).reduce((min, path) => Math.min(min, getCostOfPath(path)), Infinity);
+    const path = getShortestPath(graph, start, ends);
+
+    // All paths should have the same cost
+    return getCostOfPath(path);
 };
 
 export const solveStep2 = async (isExample: boolean): Promise<number> => {
@@ -185,27 +196,9 @@ export const solveStep2 = async (isExample: boolean): Promise<number> => {
     const grid = getGrid(file);
 
     const { graph, start, ends } = toGraph(grid);
-    const shortestPaths = getShortestPaths(graph, start, ends);
-    console.log(shortestPaths);
+    const path = getShortestPath(graph, start, ends, true);
 
-    const cheapestPaths = shortestPaths.reduce((paths: string[][], path: string[]) => {
-        if (!paths.length) {
-            paths.push(path);
-            return paths;
-        }
-        const cost = getCostOfPath(path);
-        const cheapestPath = paths[0];
-        const cheapestCost = getCostOfPath(cheapestPath);
-        if (cost < cheapestCost) {
-            paths = [path];
-            return paths;
-        }
-        if (cost === cheapestCost) {
-            paths.push(path);
-            return paths;
-        }
-        return paths;
-    }, []);
+    const uniqueCells = getUniqueCellsOfPath(path);
 
-    return cheapestPaths.reduce((cellsCount, path) => cellsCount + getUniqueCellsOfPath(path).size, 0);
+    return uniqueCells.size;
 };
