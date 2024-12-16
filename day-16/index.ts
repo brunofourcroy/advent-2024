@@ -1,8 +1,3 @@
-import {
-    MinPriorityQueue,
-    PriorityQueue,
-  } from '@datastructures-js/priority-queue';
-
 import { readAdventOfCodeFile } from "../utils/readFile";
 const getGrid = (file: string) => {
     return file.split('\n').map(line => line.split(''));
@@ -113,21 +108,22 @@ const getShortestPath = (graph: Graph, start: string, ends: string[], getAllVari
     }
     distances[start] = 0;
 
-    const queue = new MinPriorityQueue<QueuedCell>((o) => o.distance);
-    queue.enqueue({ cell: start, distance: 0 });
+    const queue: QueuedCell[] = [];
+    queue.push({ cell: start, distance: 0 });
 
     const paths: Record<string, string[]> = {};
     paths[start] = [];
 
-    while (queue.size()) {
-        const { cell } = queue.pop();
+    while (queue.length) {
+        const { cell } = queue.pop() as QueuedCell;
         const neighbours = graph.get(cell) as Record<string, number>;
         for (const neighbour of Object.keys(neighbours)) {
             const distance = distances[cell] + neighbours[neighbour];
             if (distance < distances[neighbour]) {
                 distances[neighbour] = distance;
                 paths[neighbour] = [cell];
-                queue.enqueue({ cell: neighbour, distance });
+                queue.push({ cell: neighbour, distance });
+                queue.sort((a, b) => b.distance - a.distance);
             } else if (distance === distances[neighbour]) {
                 paths[neighbour].push(cell);
             }
