@@ -8,10 +8,10 @@ const parseFile = (file: string) => {
         return registers;
     }, {});
     const instructions = programRow.replace('Program: ', '').split(',').map(instruction => parseInt(instruction));
-    return { A: registers.A, B: registers.B, C: registers.C, instructions };
+    return { A: BigInt(registers.A), B: BigInt(registers.B), C: BigInt(registers.C), instructions };
 }
 
-const toComboOperand = (operand: number, A: number, B: number, C: number) => {
+const toComboOperand = (operand: number, A: bigint, B: bigint, C: bigint): bigint => {
     switch (operand) {
         case 4:
             return A;
@@ -22,15 +22,15 @@ const toComboOperand = (operand: number, A: number, B: number, C: number) => {
         case 7:
             throw new Error('Invalid operand');
         default:
-            return operand;
+            return BigInt(operand);
     }
 }
 
-const bitwiseXor = (a: number, b: number): number => {
+const bitwiseXor = (a: bigint, b: bigint): bigint => {
     return a ^ b;
 }
 
-export const runProgram = (A: number, B: number, C: number, instructions: number[]): string => {
+export const runProgram = (A: bigint, B: bigint, C: bigint, instructions: number[]): string => {
     const outputs: number[] = [];
 
     let cur = 0;
@@ -42,16 +42,16 @@ export const runProgram = (A: number, B: number, C: number, instructions: number
         }
         switch (instruction) {
             case 0:
-                A = Math.trunc(A / Math.pow(2, toComboOperand(operand, A, B, C)));
+                A = BigInt(Math.trunc(Number(A) / Math.pow(2, Number(toComboOperand(operand, A, B, C)))));
                 break;
             case 1:
-                B = bitwiseXor(B, operand);
+                B = bitwiseXor(B, BigInt(operand));
                 break;
             case 2:
-                B = toComboOperand(operand, A, B, C) % 8;
+                B = toComboOperand(operand, A, B, C) % 8n;
                 break;
             case 3:
-                if (A === 0) {
+                if (A === 0n) {
                     break;
                 }
                 cur = operand;
@@ -60,13 +60,13 @@ export const runProgram = (A: number, B: number, C: number, instructions: number
                 B = bitwiseXor(B, C);
                 break;
             case 5:
-                outputs.push(toComboOperand(operand, A, B, C) % 8);
+                outputs.push(Number(toComboOperand(operand, A, B, C) % 8n));
                 break;
             case 6:
-                B = A = Math.trunc(A / Math.pow(2, toComboOperand(operand, A, B, C)));
+                B  = BigInt(Math.trunc(Number(A) / Math.pow(2, Number(toComboOperand(operand, A, B, C)))));
                 break;
             case 7:
-                C = A = Math.trunc(A / Math.pow(2, toComboOperand(operand, A, B, C)));
+                C = BigInt(Math.trunc(Number(A) / Math.pow(2, Number(toComboOperand(operand, A, B, C)))));
                 break;
         }
         cur += 2;
@@ -85,5 +85,23 @@ export const solveStep1 = async (isExample: boolean): Promise<string> => {
 
 export const solveStep2 = async (isExample: boolean): Promise<number> => {
     const file = await readAdventOfCodeFile(17, isExample);
-    return 0;
+    let { B, C, instructions } = parseFile(file);
+
+    const desiredOutput = instructions.join(',');
+    let possibleA = 0n;
+    let loopCount = 0;
+    while (true) {
+        const output = runProgram(possibleA, B, C, instructions);
+        if (output === desiredOutput) {
+            break;
+        }
+        if (possibleA !== 0n && desiredOutput.endsWith(output)) {
+            possibleA *= 8n;
+        } else {
+            possibleA += 1n;
+        }
+        loopCount++;
+    }
+    console.log(`Loop count: ${loopCount}`);
+    return Number(possibleA);
 };
