@@ -219,16 +219,16 @@ const padMove = <T extends string | number | symbol>(from: T, to: T, pad: Pad<T>
     return paths[from][to];
 }
 
-const inputCache: Map<string, Command[]> = new Map();
+const inputCache: Map<string, string> = new Map();
 
-const getInputForOutput = (from: Command, to: Command[]): Command[] => {
-    const cached = inputCache.get(`${from}-${to.join('')}`);
+const getInputForOutput = (from: string, to: string): string => {
+    const cached = inputCache.get(`${from}-${to}`);
     if (cached) {
         return cached;
     }
     if (to.length === 1) {
-        const move: Command[] = [...padMove(from, to[0], directionalPad), 'A'];
-        inputCache.set(`${from}-${to.join('')}`, move);
+        const move = `${padMove(from as Command, to[0] as Command, directionalPad).join('')}A`;
+        inputCache.set(`${from}-${to}`, move);
         return move;
     }
 
@@ -239,19 +239,42 @@ const getInputForOutput = (from: Command, to: Command[]): Command[] => {
 
     const whereAreWeNow = firstHalf[firstHalf.length - 1];
 
-    const inputForSecondHalf: Command[] = getInputForOutput(whereAreWeNow, secondHalf);
-    inputCache.set(`${from}-${to.join('')}`, [...inputForFirstHalf, ...inputForSecondHalf]);
-    //console.log(`Cached entry count: ${inputCache.size}`);
+    const inputForSecondHalf = getInputForOutput(whereAreWeNow, secondHalf);
 
-    return [...inputForFirstHalf, ...inputForSecondHalf];
+    const finalPath = `${inputForFirstHalf}${inputForSecondHalf}`;
+    inputCache.set(`${from}-${to}`, finalPath);
+
+    return finalPath;
 }
 
-export const getInputForFinalOutput = (desiredOutput: string[], nbOfRobotsWithDirectionalPads: number) => {
-    const chain: { cur: Command | NumericCommand; path: Command[] }[] = [
-        { cur: 'A', path: [] },
+const CHUNK_SIZE = 1000000; // Adjust based on memory constraints
+
+const getInputForOutputInChunks = (from: string, to: string[]): Generator<string> => {
+    if (to.length <= CHUNK_SIZE) {
+        // For small enough inputs, use existing logic
+        return function*() {
+            yield getInputForOutput(from, to.join(''));
+        }();
+    }
+
+    // Process in chunks
+    return function*() {
+        let currentPosition = from;
+        for (let i = 0; i < to.length; i += CHUNK_SIZE) {
+            const chunk = to.slice(i, i + CHUNK_SIZE);
+            const chunkResult = getInputForOutput(currentPosition, chunk.join(''));
+            yield chunkResult;
+            currentPosition = chunk[chunk.length - 1];
+        }
+    }();
+}
+
+export const getInputForFinalOutput = (desiredOutput: string[], nbOfRobotsWithDirectionalPads: number): string => {
+    const chain: { cur: Command | NumericCommand; path: string }[] = [
+        { cur: 'A', path: '' },
     ];
     for (let i = 0; i < nbOfRobotsWithDirectionalPads; i++) {
-        chain.push({ cur: 'A', path: []})
+        chain.push({ cur: 'A', path: ''})
     }
 
     for (let i = 0; i< chain.length; i++) {
@@ -259,14 +282,15 @@ export const getInputForFinalOutput = (desiredOutput: string[], nbOfRobotsWithDi
         if (i === 0) {
             for (let char of desiredOutput) {
                 const commands = padMove(chain[i].cur as NumericCommand, char as NumericCommand, numbericPad);
-                chain[i].path = [...chain[i].path, ...commands, 'A'];
+                chain[i].path += `${commands.join('')}A`;
                 chain[i].cur = char as NumericCommand;
             }
         } else {
             // For the rest, we use the dir pad
             let toProcess = chain[i - 1].path;
-            chain[i].path = getInputForOutput(chain[i].cur as Command, toProcess);
+            chain[i].path = getInputForOutput(chain[i].cur, toProcess);
         }
+        console.log(`Processed ${i + 1} robots for ${desiredOutput.join('')}`);
     }
     return chain[chain.length - 1].path;
 };
@@ -274,7 +298,7 @@ export const getInputForFinalOutput = (desiredOutput: string[], nbOfRobotsWithDi
 export const solveStep1 = async (isExample: boolean): Promise<number> => {
     const file = await readAdventOfCodeFile(21, isExample);
     const desiredOutputs: string[][] = file.split('\n').map(line => line.split(''));
-    const finalInputs: string[][] = [];
+    const finalInputs: string[] = [];
     for (const desiredOutput of desiredOutputs) {
         finalInputs.push(getInputForFinalOutput(desiredOutput, 2));
     }
@@ -289,7 +313,7 @@ export const solveStep1 = async (isExample: boolean): Promise<number> => {
 export const solveStep2 = async (isExample: boolean): Promise<number> => {
     const file = await readAdventOfCodeFile(21, isExample);
     const desiredOutputs: string[][] = file.split('\n').map(line => line.split(''));
-    const finalInputs: string[][] = [];
+    const finalInputs: string[] = [];
 
     let inputProcessed = 0;
     for (const desiredOutput of desiredOutputs) {

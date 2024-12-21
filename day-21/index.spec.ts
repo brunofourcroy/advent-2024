@@ -8,7 +8,7 @@ describe('Day X', () => {
                 const expectedInputLength = '<vA<AA>>^AvAA<^A>A<v<A>>^AvA^A<vA>^A<v<A>^A>AAvA^A<v<A>A>^AAAvA<^A>A'.length;
     
                 const result = getInputForFinalOutput(input, 2);
-                expect(result.length).toBe(expectedInputLength);
+                expect(result).toBe(expectedInputLength);
             });
             it('returns the correct input', () => {
                 const input = ['9', '8', '0', 'A'];
@@ -49,10 +49,6 @@ describe('Day X', () => {
         });
     });
     describe('Step 2', () => {
-        // it('works with the example', async () => {
-        //     const result = await solveStep2(true);
-        //     expect(result).toBe(0);
-        // });
         it('provides the right answer', async () => {
             const result = await solveStep2(false);
             expect(result).toBe(0);
